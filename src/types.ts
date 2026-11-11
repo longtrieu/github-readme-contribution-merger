@@ -65,4 +65,5 @@ export interface RenderOptions {
   customPalettes?: OverlayPalette[];  // per-user custom palettes (overlay)
   customTheme?: ThemeColors;          // custom theme (for bg/text/empty + sum levels)
   failedUsers?: string[];             // usernames that failed to fetch
+  title?: string;                     // header line, e.g. "249 contributions in the last year"
 }

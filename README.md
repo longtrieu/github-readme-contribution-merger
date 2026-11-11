@@ -144,8 +144,28 @@ Returns an SVG image of the merged contribution graph.
 | `theme` | No | `github` | Preset color theme (see below) |
 | `colors` | No | — | Comma-separated 6-char hex colors (no `#`), one per user. Overrides `theme`. |
 | `bg` | No | `dark` | Background mode when using `colors`: `light` or `dark` |
+| `year` | No | last year | Calendar year to show (`2008` to the current year). Omit it for the last 12 months, like GitHub's default view. |
 
 *Provide either `users` or `user1`+`user2`+... At least 2 usernames required (max 10).
+
+### Header and Years
+
+Every graph starts with a header line like GitHub's: **"249 contributions in the last year"**, or **"262 contributions in 2025"** with `year=2025`. For multiple users, the header shows their combined total.
+
+Past years are cached for a day, because their data no longer changes.
+
+GitHub READMEs can't run scripts, so you can't click between years in place. You can get close with collapsible sections:
+
+```html
+![Contributions](https://YOUR_DOMAIN/api/merge?users=YOUR_USERNAME)
+
+<details>
+<summary>2025</summary>
+
+![2025](https://YOUR_DOMAIN/api/merge?users=YOUR_USERNAME&year=2025)
+
+</details>
+```
 
 ### Custom Colors
 

@@ -16,6 +16,7 @@ const PADDING = 16;
 const LEGEND_HEIGHT = 30;
 const USERS_LABEL_HEIGHT = 20;
 const WARNING_HEIGHT = 20;
+const TITLE_HEIGHT = 22;
 
 function escapeXml(str: string): string {
   return str
@@ -115,7 +116,9 @@ export function renderSvg(days: MergedDay[], options: RenderOptions): string {
   const showUsersLabel = options.mode !== 'overlay' && options.usernames.length > 1;
   const hasWarning = options.failedUsers && options.failedUsers.length > 0;
   const totalWidth = PADDING * 2 + LABEL_AREA_X + gridWidth;
+  const titleHeight = options.title ? TITLE_HEIGHT : 0;
   const totalHeight =
+    titleHeight +
     PADDING * 2 +
     LABEL_AREA_Y +
     gridHeight +
@@ -281,14 +284,21 @@ export function renderSvg(days: MergedDay[], options: RenderOptions): string {
     );
   }
 
+  const titleElement = options.title
+    ? `<text x="${PADDING + LABEL_AREA_X}" y="${PADDING + 10}" fill="${theme.text}" font-size="13" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">${escapeXml(options.title)}</text>`
+    : '';
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}">
   <rect width="${totalWidth}" height="${totalHeight}" fill="${theme.background}" rx="6" ry="6"/>
+  ${titleElement}
+  <g transform="translate(0 ${titleHeight})">
   ${monthLabelElements.join('\n  ')}
   ${dayLabelElements.join('\n  ')}
   ${cellElements.join('\n  ')}
   ${legendElements.join('\n  ')}
   ${userLabelElements.join('\n  ')}
   ${warningElements.join('\n  ')}
+  </g>
 </svg>`;
 }
 

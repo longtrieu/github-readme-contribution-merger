@@ -4,9 +4,9 @@ import { cacheGet, cacheSet } from './cache';
 const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql';
 
 const CONTRIBUTIONS_QUERY = `
-query($username: String!) {
+query($username: String!, $from: DateTime, $to: DateTime) {
   user(login: $username) {
-    contributionsCollection {
+    contributionsCollection(from: $from, to: $to) {
       contributionCalendar {
         totalContributions
         weeks {
@@ -21,11 +21,27 @@ query($username: String!) {
   }
 }`;
 
+/** Cache past years for a day: their data no longer changes. */
+export const PAST_YEAR_TTL = 24 * 60 * 60 * 1000;
+
+/** Earliest year GitHub has contribution data for. */
+export const MIN_YEAR = 2008;
+
+export function isPastYear(year: number | undefined): boolean {
+  return year !== undefined && year < new Date().getUTCFullYear();
+}
+
+/**
+ * Fetch a user's contribution calendar.
+ * Without `year`, returns the last year (GitHub's default view).
+ * With `year`, returns Jan 1 – Dec 31 of that calendar year.
+ */
 export async function fetchContributions(
   username: string,
-  token: string
+  token: string,
+  year?: number
 ): Promise<UserContributions> {
-  const cacheKey = `user:${username}`;
+  const cacheKey = `user:${username}:${year ?? 'last'}`;
   const cached = cacheGet<UserContributions>(cacheKey);
   if (cached) return cached;
 
@@ -38,7 +54,13 @@ export async function fetchContributions(
     },
     body: JSON.stringify({
       query: CONTRIBUTIONS_QUERY,
-      variables: { username },
+      variables: {
+        username,
+        ...(year !== undefined && {
+          from: `${year}-01-01T00:00:00Z`,
+          to: `${year}-12-31T23:59:59Z`,
+        }),
+      },
     }),
   });
 
@@ -70,7 +92,7 @@ export async function fetchContributions(
     days,
   };
 
-  cacheSet(cacheKey, result);
+  cacheSet(cacheKey, result, isPastYear(year) ? PAST_YEAR_TTL : undefined);
   return result;
 }
 
@@ -81,10 +103,11 @@ export interface FetchResult {
 
 export async function fetchMultipleUsers(
   usernames: string[],
-  token: string
+  token: string,
+  year?: number
 ): Promise<FetchResult> {
   const results = await Promise.allSettled(
-    usernames.map((u) => fetchContributions(u, token))
+    usernames.map((u) => fetchContributions(u, token, year))
   );
 
   const fulfilled: UserContributions[] = [];

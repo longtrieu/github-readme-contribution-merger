@@ -18,6 +18,7 @@ export interface GitHubUserResponse {
   data: {
     user: {
       contributionsCollection: {
+        contributionYears: number[];
         contributionCalendar: GitHubContributionCalendar;
       };
     } | null;
@@ -34,6 +35,7 @@ export interface ContributionDay {
 export interface UserContributions {
   username: string;
   totalContributions: number;
+  contributionYears: number[];
   days: ContributionDay[];
 }
 

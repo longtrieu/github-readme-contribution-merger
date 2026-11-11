@@ -150,7 +150,7 @@ Returns an SVG image of the merged contribution graph.
 
 ### Header and Years
 
-Every graph starts with a header line like GitHub's: **"249 contributions in the last year"**, or **"262 contributions in 2025"** with `year=2025`. For multiple users, the header shows their combined total.
+Every graph starts with a header line like GitHub's. The default view also shows the all-time total and the number of years with contributions: **"1,668 contributions in the last year · 5,432 across 15 years"**. With `year=2025` it shows just that year: **"262 contributions in 2025"**. For multiple users, totals are combined and the year count is the number of distinct years any of them contributed in.
 
 Past years are cached for a day, because their data no longer changes.
 

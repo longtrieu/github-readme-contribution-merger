@@ -1,5 +1,5 @@
 import type { MergeMode } from '../src/types';
-import { fetchMultipleUsers, isPastYear, MIN_YEAR } from '../src/github';
+import { fetchMultipleUsers, fetchAllTimeTotal, isPastYear, MIN_YEAR } from '../src/github';
 import { mergeContributions } from '../src/merger';
 import { renderSvg, renderErrorSvg } from '../src/svg';
 import { cacheGet, cacheSet } from '../src/cache';
@@ -64,10 +64,17 @@ function respondSvg(
   res.status(status).send(svg);
 }
 
-function buildTitle(total: number, year?: number): string {
+function buildTitle(
+  total: number,
+  year?: number,
+  allTime?: { total: number; years: number }
+): string {
   const noun = total === 1 ? 'contribution' : 'contributions';
   const period = year === undefined ? 'the last year' : String(year);
-  return `${total.toLocaleString('en-US')} ${noun} in ${period}`;
+  const title = `${total.toLocaleString('en-US')} ${noun} in ${period}`;
+  if (!allTime) return title;
+  const yearNoun = allTime.years === 1 ? 'year' : 'years';
+  return `${title} \u00B7 ${allTime.total.toLocaleString('en-US')} across ${allTime.years} ${yearNoun}`;
 }
 
 export default async function handler(
@@ -125,6 +132,10 @@ export default async function handler(
       return;
     }
   }
+  // The default (last year) view also shows the all-time total in the header.
+  // Costs one extra API call per user, cached for an hour.
+  const showAllTime = year === undefined;
+
   // Past years never change, so let browsers, camo and the CDN keep them for a day.
   const maxAge = isPastYear(year) ? 86400 : 300;
 
@@ -168,6 +179,24 @@ export default async function handler(
     return;
   }
 
+  // All-time total: if any user's total fails, leave it out rather than show a wrong number.
+  let allTime: { total: number; years: number } | undefined;
+  let allTimeFailed = false;
+  if (showAllTime) {
+    const totals = await Promise.allSettled(
+      fulfilled.map((u) => fetchAllTimeTotal(u.username, token, u.contributionYears))
+    );
+    if (totals.every((t) => t.status === 'fulfilled')) {
+      allTime = {
+        total: totals.reduce((sum, t) => sum + (t as PromiseFulfilledResult<number>).value, 0),
+        // Distinct years any user contributed in (the years GitHub lists on the profile).
+        years: new Set(fulfilled.flatMap((u) => u.contributionYears)).size,
+      };
+    } else {
+      allTimeFailed = true;
+    }
+  }
+
   // Build render options
   const fulfilledUsernames = fulfilled.map((u) => u.username);
   const failedUsernames = errors.map((e) => e.username);
@@ -176,7 +205,7 @@ export default async function handler(
     theme,
     usernames: fulfilledUsernames,
     failedUsers: failedUsernames.length > 0 ? failedUsernames : undefined,
-    title: buildTitle(fulfilled.reduce((sum, u) => sum + u.totalContributions, 0), year),
+    title: buildTitle(fulfilled.reduce((sum, u) => sum + u.totalContributions, 0), year, allTime),
   };
 
   if (customColors) {
@@ -205,7 +234,7 @@ export default async function handler(
   const svg = renderSvg(merged, renderOptions);
 
   // Don't keep partial results (some users failed) for a whole day.
-  const effectiveMaxAge = failedUsernames.length > 0 ? 300 : maxAge;
+  const effectiveMaxAge = failedUsernames.length > 0 || allTimeFailed ? 300 : maxAge;
   cacheSet(svgCacheKey, { svg, failedUsers: failedUsernames }, effectiveMaxAge * 1000);
   respondSvg(res, svg, 200, failedUsernames, effectiveMaxAge);
 }
